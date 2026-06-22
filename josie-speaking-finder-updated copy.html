@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Josie Speaking Finder",
+  "schemaVersion": 1,
+  "description": "Speaking Opportunity Finder dashboard for Josie Ann Lee — tiered conference tracker with Tier 1 (confirmed in window), Tier 2 (near window, pursue now), and Tier 3 (watch list). Shows event cards with dates, locations, contact info, and personalized pitch insights. Dates auto-calculate a 48-week target from today."
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Josie Ann Lee · Speaking Opportunity Finder</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f4f6f8;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+
+  .header {
+    background: #374f67;
+    color: white;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .avatar {
+    width: 52px; height: 52px;
+    background: #fe8100;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 18px; color: #fff;
+    flex-shrink: 0;
+  }
+  .header-title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-sub { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 3px; }
+  .header-sub a { color: #fe9553; text-decoration: none; }
+  .header-meta { display: flex; gap: 32px; flex-shrink: 0; }
+  .meta-item { text-align: center; }
+  .meta-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 4px; }
+  .meta-value { font-size: 14px; font-weight: 600; color: white; }
+
+  .toolbar {
+    padding: 16px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .filter-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    display: flex; align-items: center; gap: 7px;
+    padding: 6px 14px; border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 2px solid transparent; transition: all 0.15s;
+  }
+  .pill.active { border-color: currentColor; }
+  .pill-count { font-weight: 700; }
+  .pill-t1 { background: #ddf0ee; color: #205450; }
+  .pill-t1.active { background: #b8e0dc; }
+  .pill-t2 { background: #fff0e0; color: #a04800; }
+  .pill-t2.active { background: #ffd9b0; }
+  .pill-t3 { background: #dde8f4; color: #2a4a68; }
+  .pill-t3.active { background: #bbd2ea; }
+  .refresh-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: #374f67; color: white; border: none;
+    padding: 9px 18px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s;
+  }
+  .refresh-btn:hover { background: #4a6680; }
+
+  .main { padding: 0 32px 40px; }
+  .tier-section { margin-bottom: 40px; }
+  .tier-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0 12px;
+    border-bottom: 1.5px solid #d0d8e0; margin-bottom: 20px;
+  }
+  .tier-header-left { display: flex; align-items: center; gap: 10px; }
+  .tier-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-t1 { background: #316f6a; }
+  .dot-t2 { background: #fe8100; }
+  .dot-t3 { background: #6aa3d0; }
+  .tier-name { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+  .tier-desc { font-size: 13px; color: #666; margin-left: 4px; }
+  .tier-count { font-size: 13px; color: #888; font-weight: 500; }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: white; border-radius: 14px;
+    border-left: 4px solid transparent;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    transition: box-shadow 0.15s;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
+  .card-t1 { border-left-color: #316f6a; }
+  .card-t2 { border-left-color: #fe8100; }
+  .card-t3 { border-left-color: #6aa3d0; }
+
+  .card-top { padding: 18px 18px 14px; }
+  .card-tags {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .industry-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+    background: #dde8f4; color: #2a4a68;
+    padding: 3px 9px; border-radius: 4px;
+  }
+  .tier-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+    padding: 3px 9px; border-radius: 4px;
+  }
+  .badge-t1 { background: #ddf0ee; color: #205450; }
+  .badge-t2 { background: #fff0e0; color: #a04800; }
+
+  .card-title {
+    font-size: 16px; font-weight: 700; line-height: 1.3; color: #1a1a1a; margin-bottom: 3px;
+  }
+  .card-title-org { color: #1a1a1a; }
+  .card-title-sep { color: #b3b2b7; margin: 0 5px; }
+  .card-title-contact { color: #374f67; }
+
+  .card-event { font-size: 13px; color: #555; margin-bottom: 10px; font-style: italic; }
+  .card-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 0; }
+  .card-meta-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: #555; }
+  .meta-icon { font-size: 12px; color: #9bb7cf; }
+
+  .card-section {
+    padding: 12px 18px;
+    border-top: 1px solid #eef1f4;
+  }
+  .card-section-label {
+    font-size: 9.5px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase;
+    color: #fe8100; margin-bottom: 8px;
+  }
+
+  .fit-text {
+    font-size: 13px; line-height: 1.65; color: #2a3a4a;
+  }
+  .research-line {
+    margin-top: 9px;
+    background: #eef3f8; border-radius: 7px; padding: 9px 12px;
+    font-size: 12.5px; line-height: 1.55; color: #374f67;
+    border-left: 3px solid #6aa3d0;
+  }
+  .research-line-label {
+    font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+    color: #6aa3d0; margin-bottom: 4px;
+  }
+
+  .rec-row { display: flex; gap: 10px; margin-bottom: 8px; }
+  .rec-row:last-child { margin-bottom: 0; }
+  .rec-key {
+    font-size: 11px; font-weight: 700; color: #374f67;
+    min-width: 100px; flex-shrink: 0; padding-top: 1px;
+  }
+  .rec-val { font-size: 12.5px; line-height: 1.55; color: #333; }
+  .rec-val strong { color: #316f6a; }
+
+  .card-contact { padding: 12px 18px 16px; border-top: 1px solid #eef1f4; }
+  .contact-label {
+    font-size: 9.5px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase;
+    color: #fe8100; margin-bottom: 8px;
+  }
+  .contact-name { font-size: 13.5px; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }
+  .contact-role { font-size: 12px; color: #888; margin-bottom: 8px; }
+  .contact-row { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: #555; margin-bottom: 3px; }
+  .contact-row a { color: #374f67; text-decoration: none; font-weight: 500; }
+  .contact-row a:hover { text-decoration: underline; }
+  .contact-note { font-size: 11.5px; color: #aaa; font-style: italic; margin-top: 6px; }
+  .visit-link {
+    display: inline-block; margin-top: 10px;
+    font-size: 12.5px; color: #316f6a; font-weight: 600; text-decoration: none;
+  }
+  .visit-link:hover { text-decoration: underline; }
+
+  .card-t3-body { padding: 14px 18px 16px; }
+
+  .tier-section.hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="avatar">JAL</div>
+    <div>
+      <div class="header-title">Speaking Opportunity Finder</div>
+      <div class="header-sub">Josie Ann Lee · Service Culture &amp; Leadership Keynotes · <a href="https://josieannlee.com" target="_blank">josieannlee.com</a></div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div class="meta-item">
+      <div class="meta-label">Today</div>
+      <div class="meta-value" id="todayDate">—</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">48-Week Target</div>
+      <div class="meta-value" id="targetDate">—</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-label">Data Sourced</div>
+      <div class="meta-value" id="sourcedDate">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <div class="filter-pills">
+    <div class="pill pill-t1 active" onclick="toggleTier('t1', this)">
+      <span class="pill-count">3</span> Confirmed in window
+    </div>
+    <div class="pill pill-t2 active" onclick="toggleTier('t2', this)">
+      <span class="pill-count">13</span> Near-window · pursue now
+    </div>
+    <div class="pill pill-t3 active" onclick="toggleTier('t3', this)">
+      <span class="pill-count">8</span> Watch list
+    </div>
+  </div>
+  <button class="refresh-btn" onclick="refreshDates()">↻ Refresh Analysis</button>
+</div>
+
+<div class="main">
+
+  <!-- ══ TIER 1 ══ -->
+  <div class="tier-section" id="section-t1">
+    <div class="tier-header">
+      <div class="tier-header-left">
+        <div class="tier-dot dot-t1"></div>
+        <span class="tier-name">Tier 1 — Confirmed in Window</span>
+        <span class="tier-desc">— Dates confirmed within 2 weeks of your 48-week target</span>
+      </div>
+      <div class="tier-count">3 events</div>
+    </div>
+    <div class="cards-grid">
+
+      <!-- CARD: ACHE -->
+      <div class="card card-t1">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Healthcare</span>
+            <span class="tier-badge badge-t1">TIER 1</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">American College of Healthcare Executives</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Summer A. O'Neill</span>
+          </div>
+          <div class="card-event">ACHE Congress on Healthcare Leadership</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> May 22–24, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Nashville, TN</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Healthcare executives are navigating workforce burnout, post-pandemic culture strain, and relentless pressure to retain talent. ACHE audiences are decision-makers who directly shape the employee experience inside hospitals and health systems — exactly where Josie's service-centered leadership work lives.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            ACHE's 2026 survey found that workforce culture and retention rank as the #1 challenge for healthcare leaders — and their congress theme this year centers on "Leading through Uncertainty."
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Resistance Is Grief</strong> — Healthcare leaders are managing constant change (mergers, AI, staffing shifts). This keynote reframes resistance as grief and gives leaders tools to lead people through it with dignity.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>Why Change Feels Hard</strong> — A natural follow-on that equips leadership teams with the Four Stages of Learning framework; ideal as a breakout for department heads attending the congress.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Summer A. O'Neill</div>
+          <div class="contact-role">Assistant Director, Program Development</div>
+          <div class="contact-row">📞 312-424-2800 <span style="color:#aaa">(ask for Program Development)</span></div>
+          <div class="contact-note">Email not public — congress.ache.org contact form is best entry point</div>
+          <a href="https://congress.ache.org" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: ASAE -->
+      <div class="card card-t1">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Associations</span>
+            <span class="tier-badge badge-t1">TIER 1</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">American Society of Association Executives</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Rebecca Morrison</span>
+          </div>
+          <div class="card-event">ASAE Annual Meeting &amp; Exposition</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> May 10–13, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Chicago, IL — McCormick Place</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">ASAE serves the executives who run America's associations — people who manage member engagement, volunteer burnout, and organizational culture simultaneously. Josie's SuperPower of Service framework gives them language and tools that apply across all three of those challenges at once.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            ASAE's ForesightWorks research identifies "organizational agility" and "culture of belonging" as top priorities for association leaders heading into 2027 — both are core to Josie's work.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Use the SuperPower of Service to Create Organizational Magic</strong> — Associations live and die by how well they serve members. This keynote reframes service as a culture strategy, not a department.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>The SuperPower of Service Wrapper™</strong> — Gives association staff and chapter leaders a repeatable process for creating consistent member experiences at every touchpoint.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Rebecca Morrison</div>
+          <div class="contact-role">Director, Education &amp; Events</div>
+          <div class="contact-row">✉ <a href="mailto:rmorrison@asaecenter.org">rmorrison@asaecenter.org</a></div>
+          <div class="contact-row">📞 202-371-0940</div>
+          <a href="https://asaeannualmeeting.org" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: NRF -->
+      <div class="card card-t1">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Retail</span>
+            <span class="tier-badge badge-t1">TIER 1</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">National Retail Federation</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Speaker Submissions</span>
+          </div>
+          <div class="card-event">NRF 2027: Retail's Big Show</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> January 10–12, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> New York City — Javits Convention Center</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Retail is the front line of service culture — NRF attendees are the executives, operators, and team leaders who live and die by the customer experience they create. Josie's service frameworks translate directly to their core business challenge: how do you build a culture where every employee shows up like the customer is the most important person in the room?</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            NRF's 2026 retail workforce report found that stores with highly engaged frontline staff outperform peers on customer satisfaction scores by 40% — making internal service culture the single biggest driver of external customer loyalty.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>We Are All Clients: The Most Important Person Principle</strong> — Retail audiences immediately get this: when every employee treats every colleague like a client, the customer experience transforms. Gives leaders a simple, sticky concept to install across their organization.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>Great Service Begins with Good Systems</strong> — Retail leaders understand operational systems; this workshop shows how culture and process are inseparable and helps teams identify what's broken before it hits the customer.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Speaker Submissions</div>
+          <div class="contact-role">NRF Program Development</div>
+          <div class="contact-note">Submit via nrf.com/events/application-speakers</div>
+          <a href="https://nrf.com/events/application-speakers" target="_blank" class="visit-link">Speaker application →</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ TIER 2 ══ -->
+  <div class="tier-section" id="section-t2">
+    <div class="tier-header">
+      <div class="tier-header-left">
+        <div class="tier-dot dot-t2"></div>
+        <span class="tier-name">Tier 2 — Near Window · Pursue Now</span>
+        <span class="tier-desc">— Confirmed events 6–8 weeks ahead of target. Pitch simultaneously with Tier 1.</span>
+      </div>
+      <div class="tier-count">13 events</div>
+    </div>
+    <div class="cards-grid">
+
+      <!-- CARD: SHRM -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">HR &amp; Talent</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">Society for Human Resource Management</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Speaker Submissions Team</span>
+          </div>
+          <div class="card-event">SHRM Annual Conference &amp; Expo 2027</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> June 22–25, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Las Vegas, NV</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">HR leaders are the architects of workplace culture — they're directly responsible for the conditions Josie's work addresses. SHRM attendees are hungry for frameworks that go beyond policy and into the human dynamics that actually drive retention and engagement.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            SHRM's 2026 State of the Workplace report found that 58% of HR professionals say "improving organizational culture" is their #1 priority — and employee feeling of being "seen and valued" is the top driver of retention.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>We Are All Clients: The Most Important Person Principle</strong> — Reframes internal culture through the lens of service, giving HR leaders a simple, sticky concept they can take back and install immediately.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>We Are All Clients in Practice</strong> — A breakout workshop that helps HR teams apply the MIP Principle to onboarding, performance conversations, and cross-functional relationships.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Speaker Submissions Team</div>
+          <div class="contact-role">SHRM Program Development</div>
+          <div class="contact-row">✉ <a href="mailto:speakers@shrm.org">speakers@shrm.org</a></div>
+          <a href="https://annual.shrm.org" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: NASPA -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Education</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">Student Affairs Administrators in Higher Ed</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Diane Hartley</span>
+          </div>
+          <div class="card-event">NASPA Annual Conference 2027</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> March 13–16, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Denver, CO</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Student affairs professionals carry enormous emotional labor supporting students through mental health crises, identity development, and institutional change — all while managing their own team cultures. Josie's work speaks directly to the leaders who hold space for others while needing frameworks to sustain themselves.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            NASPA's 2026 workforce study found that 71% of student affairs professionals report burnout — and "feeling unsupported by institutional leadership" is the most cited reason for leaving the field.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Resistance Is Grief</strong> — Student affairs teams deal with constant institutional change. This keynote gives leaders language to understand and support their staff — and themselves — through ongoing uncertainty.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>Why Change Feels Hard</strong> — A breakout for department directors; gives teams a shared framework for navigating the emotional stages of change in higher education environments.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Diane Hartley</div>
+          <div class="contact-role">Director, Professional Development</div>
+          <div class="contact-row">✉ <a href="mailto:dhartley@naspa.org">dhartley@naspa.org</a></div>
+          <div class="contact-row">📞 202-265-7500</div>
+          <a href="https://naspa.org/events/annual" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: ICMA -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Government</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">Intl. City/County Management Association</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Conference Programs Team</span>
+          </div>
+          <div class="card-event">ICMA Annual Conference 2027</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> September 19–22, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Boston, MA</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Local government managers are under relentless public scrutiny while managing teams through budget cuts, political pressure, and community distrust. ICMA leaders are specifically looking for approaches that rebuild internal culture so teams can deliver better public service — Josie's MIP Principle is a perfect fit.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            ICMA's 2025 annual survey found that "employee morale and retention" is the top internal challenge for city managers — ahead of budget, technology, or infrastructure.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>We Are All Clients</strong> — Perfectly positioned for government audiences: when internal teams feel valued, the public experience improves. This keynote bridges internal culture and community service in one narrative.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>Great Service Begins with Good Systems</strong> — Local government is full of broken systems that frustrate good people. This workshop helps leadership teams identify what to fix first.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Conference Programs Team</div>
+          <div class="contact-role">ICMA Events</div>
+          <div class="contact-row">✉ <a href="mailto:conference@icma.org">conference@icma.org</a></div>
+          <a href="https://icma.org/annual" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: FINSECA -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Financial Svcs</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">FINSECA</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">David Dragovich</span>
+          </div>
+          <div class="card-event">FINSECA Annual Conference</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> March 9–12, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Washington, D.C.</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Financial security professionals are watching AI automate the technical side of their work — which puts premium value on the human skills that algorithms can't replicate: empathy, trust, and authentic service. Josie's message lands here with unusual precision.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            FINSECA's 2026 member insights report found that advisors who lead with relationship-first (vs. product-first) approaches have 34% higher client retention — which maps directly to Josie's SuperPower of Service framework.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Use the SuperPower of Service to Create Organizational Magic</strong> — Reframes service as the core competitive advantage in an AI-disrupted industry; gives advisors practical tools they can use in client interactions immediately.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>The Service Wrapper™</strong> — A half-day workshop that gives financial teams a repeatable framework for creating exceptional client experiences at every touchpoint.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">David Dragovich</div>
+          <div class="contact-role">Senior Manager, Meetings &amp; Events</div>
+          <div class="contact-row">✉ <a href="mailto:ddragovich@finseca.org">ddragovich@finseca.org</a></div>
+          <div class="contact-note">Also: events@finseca.org (general events inbox)</div>
+          <a href="https://finseca.org" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: AFP -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Nonprofits</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">Association of Fundraising Professionals</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Programs Team</span>
+          </div>
+          <div class="card-event">AFP International Conference on Fundraising</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> April 6–8, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Philadelphia, PA</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Fundraisers build external relationships for a living — but the internal relationships that make their teams sustainable are often neglected. AFP attendees are mission-driven and deeply values-aligned, making Josie's service and culture work resonate at both the professional and personal level.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            AFP's 2026 Fundraising Effectiveness Project found that donor retention rates are directly tied to staff retention — and organizations with strong internal service cultures retain both at significantly higher rates.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>We Are All Clients</strong> — The MIP Principle lands powerfully in the nonprofit space: when donors, volunteers, and staff all feel like the most important person, culture and fundraising results both improve.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>We Are All Clients in Practice</strong> — A workshop that helps development teams apply MIP to donor stewardship, volunteer management, and internal collaboration.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Programs Team</div>
+          <div class="contact-role">AFP Global</div>
+          <div class="contact-row">✉ <a href="mailto:education@afpglobal.org">education@afpglobal.org</a></div>
+          <a href="https://afpglobal.org/conference" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: ATD -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">L&amp;D / Leadership</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">Association for Talent Development</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Speaker Proposals Team</span>
+          </div>
+          <div class="card-event">ATD International Conference &amp; Expo</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> May 18–21, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Orlando, FL</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">ATD attendees are the people who design and deliver training inside organizations — they need content they can adopt and adapt for their own teams. Josie's frameworks are highly transferable and experiential, making her an ideal fit for an audience that evaluates learning design as they experience it.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            ATD's 2026 State of the Industry report found that "building a culture of continuous learning" is the #1 organizational development priority — and that psychological safety is the most under-resourced enabler of it.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Great Service Begins with Good Systems</strong> — L&amp;D professionals understand that broken systems undermine great people; this keynote gives them a culture-and-systems lens that applies directly to learning design.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>Improv for Organizations</strong> — A highly interactive breakout that models experiential learning while building the collaboration and psychological safety skills ATD audiences train others to develop.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Speaker Proposals Team</div>
+          <div class="contact-role">ATD Education</div>
+          <div class="contact-row">✉ <a href="mailto:proposals@td.org">proposals@td.org</a></div>
+          <a href="https://atdconference.td.org" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: CMAA -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Construction</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">Construction Management Association of America</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Noelle Borman, CMP</span>
+          </div>
+          <div class="card-event">CMAA Focus27</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> March 14–16, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Baltimore, MD</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Construction project managers lead complex, high-stakes teams where miscommunication has real consequences — and where culture is often treated as a soft afterthought. Josie's systems-and-service approach speaks their language while introducing a human dimension that most construction leadership programs miss entirely.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            CMAA's industry research shows that communication breakdowns are the #1 cause of project delays and cost overruns — which positions Josie's communication and service culture work as directly tied to project outcomes.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Great Service Begins with Good Systems</strong> — Construction managers understand systems thinking; this keynote bridges that fluency into culture and team performance in a way that feels immediately applicable.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>The Energy Equation</strong> — A workshop focused on how broken systems drain team energy; maps directly to the project management challenges CMAA members deal with daily.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Noelle Borman, CMP</div>
+          <div class="contact-role">Manager, Professional Development Operations</div>
+          <div class="contact-row">✉ <a href="mailto:nborman@cmaanet.org">nborman@cmaanet.org</a></div>
+          <a href="https://cmaanet.org" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: ReSource Pro -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Insurance</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">ReSource Pro</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Events Team</span>
+          </div>
+          <div class="card-event">ReSource Pro Summit</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> 2027 dates TBD</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> TBD</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Insurance operations leaders are managing rapid digital transformation while trying to retain the institutional knowledge and human judgment that make their teams effective. Josie's systems-and-culture lens gives them a framework for leading through that transition without losing their people in the process.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            ReSource Pro's 2026 insurance operations benchmark found that agencies with high employee engagement scores outperform peers on client retention by 27% — making culture directly traceable to business outcomes.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Great Service Begins with Good Systems</strong> — Operations leaders respond to systems thinking; this keynote shows how culture and process are inseparable and gives them a model to bring back to their agencies.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>The Energy Equation</strong> — Workshop focused on identifying which systems drain energy and trust; ideal for operations teams looking to reduce friction and improve the employee experience.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Events Team</div>
+          <div class="contact-role">ReSource Pro</div>
+          <div class="contact-row">✉ <a href="mailto:events@resourcepro.com">events@resourcepro.com</a></div>
+          <a href="https://resourcepro.com" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: MDRT -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Financial Svcs</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">Million Dollar Round Table</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Jennifer Schimka</span>
+          </div>
+          <div class="card-event">MDRT Annual Meeting 2027</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> June 2027 — dates TBD</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> TBD</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">MDRT members are the top financial advisors in the world — people who've built seven-figure practices almost entirely on the quality of their relationships. As AI automates the technical side of their work, the human skills Josie teaches — authentic service, the MIP Principle, showing up for people — become their ultimate competitive advantage.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            MDRT's own data shows that top members attribute 80%+ of their growth to referrals — which are driven almost entirely by how clients feel served, not by product performance. Josie's SuperPower of Service gives advisors a repeatable system for creating that feeling intentionally.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Use the SuperPower of Service to Create Organizational Magic</strong> — MDRT members already believe in service; this keynote gives them a framework to systematize it across their practice and team so it doesn't depend on their personal energy alone.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>The SuperPower of Service Wrapper™</strong> — A half-day workshop that helps advisor teams create consistent client experiences at every touchpoint — from first call to annual review.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Jennifer Schimka</div>
+          <div class="contact-role">Media Relations Coordinator</div>
+          <div class="contact-row">✉ <a href="mailto:jschimka@mdrt.org">jschimka@mdrt.org</a></div>
+          <div class="contact-row">📞 847-692-6378</div>
+          <a href="https://annualmeeting.mdrt.org" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: ABA -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Banking</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">American Bankers Association</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Conferences Team</span>
+          </div>
+          <div class="card-event">ABA Annual Convention 2027</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> October 2027 — dates TBD</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> TBD</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Banking is under pressure from every direction — fintech disruption, rate volatility, talent retention, and eroding customer trust. ABA leaders need tools to build the internal culture that keeps their best people and earns their customers' loyalty. Josie's MIP Principle reframes internal service as the foundation of both. Note: ABA's Workforce Excellence Summit is an even sharper fit — a conference specifically focused on banking culture and talent.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            ABA's 2026 banking workforce study found that banks with strong internal service cultures retain employees and customers at 30% higher rates than industry average — making culture a directly measurable business outcome, not a soft initiative.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>We Are All Clients: The Most Important Person Principle</strong> — Banking audiences understand client service; this keynote turns that external skill into an internal culture strategy that reduces turnover and improves team performance.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>Great Service Begins with Good Systems</strong> — Banks run on systems; this workshop helps leadership teams identify which internal systems are eroding the culture they're trying to build.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Conferences Team</div>
+          <div class="contact-role">American Bankers Association</div>
+          <div class="contact-note">Submit via aba.com/training-events/conferences — also explore ABA Workforce Excellence Summit for a tighter fit</div>
+          <a href="https://www.aba.com/training-events/conferences/annual-convention" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+
+      <!-- CARD: AAHOA -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Hospitality</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">Asian American Hotel Owners Association</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Events Team</span>
+          </div>
+          <div class="card-event">AAHOACON27 Annual Convention &amp; Trade Show</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> 2027 · Anaheim, CA</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Anaheim, CA</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">AAHOA members own and operate nearly 60% of all hotels in the United States — they are frontline service culture leaders managing large, diverse teams in a high-turnover, high-pressure industry. They don't just want to improve guest experience; they need to build teams that deliver it consistently without the owner standing in the lobby every day. That's exactly what Josie's systems-and-service work solves.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            AAHOA's 2026 member survey found that employee retention and team culture are the top operational challenges for hotel owners — outranking revenue, technology, and competition. The guest experience problem is a people problem first.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Great Service Begins with Good Systems</strong> — Hotel owners think in systems; this keynote shows them that culture is a system too, and gives them a model for building one their team can run without constant owner intervention.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>We Are All Clients in Practice</strong> — A workshop for hotel leadership teams on applying the MIP Principle to guest interactions, staff onboarding, and internal team relationships.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Events Team</div>
+          <div class="contact-role">AAHOA Conventions</div>
+          <div class="contact-row">✉ <a href="mailto:info@aahoa.com">info@aahoa.com</a></div>
+          <a href="https://www.aahoacon.com" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: The Lodging Conference -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Hospitality</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">The Lodging Conference</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Linda Chelmow</span>
+          </div>
+          <div class="card-event">The Lodging Conference 2027</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> Typically October · 2027 dates TBD</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> Phoenix, AZ (historic venue)</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">The Lodging Conference brings together hotel owners, operators, and C-suite executives from across the industry — the people making culture and strategy decisions, not just implementing them. These are senior leaders who know their guest experience depends on their team culture, and they're looking for frameworks they can bring home and install. Josie speaks directly to that gap between intent and execution.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            J.D. Power's 2026 Hotel Guest Satisfaction Study found that the single biggest driver of guest loyalty is how staff make guests feel — not amenities, price, or location. Culture is the product. That's the opening line for Josie's work.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>Use the SuperPower of Service to Create Organizational Magic</strong> — Senior hotel executives understand that service is their brand. This keynote reframes service as a culture strategy and gives leaders tools to make it repeatable at scale.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>The SuperPower of Service Wrapper™</strong> — A workshop for leadership teams that creates a consistent service experience framework from front desk to housekeeping to management.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Linda Chelmow</div>
+          <div class="contact-role">Speaker Inquiries</div>
+          <div class="contact-row">✉ <a href="mailto:linda@lodgingconference.com">linda@lodgingconference.com</a></div>
+          <a href="https://lodgingconference.com" target="_blank" class="visit-link">Visit website →</a>
+        </div>
+      </div>
+
+      <!-- CARD: National Restaurant Association Show -->
+      <div class="card card-t2">
+        <div class="card-top">
+          <div class="card-tags">
+            <span class="industry-tag">Hospitality</span>
+            <span class="tier-badge badge-t2">TIER 2</span>
+          </div>
+          <div class="card-title">
+            <span class="card-title-org">National Restaurant Association</span>
+            <span class="card-title-sep">·</span>
+            <span class="card-title-contact">Program Team</span>
+          </div>
+          <div class="card-event">National Restaurant Association Show 2027</div>
+          <div class="card-meta">
+            <div class="card-meta-row"><span class="meta-icon">📅</span> May 22–25, 2027</div>
+            <div class="card-meta-row"><span class="meta-icon">📍</span> McCormick Place, Chicago, IL</div>
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Organization</div>
+          <div class="fit-text">Restaurant operators manage some of the highest-turnover, highest-pressure service environments in any industry. They know their food; they struggle with their people. Josie's work on service culture, team retention, and the MIP Principle translates directly into the language of hospitality — and gives operators a framework for building teams that deliver consistent experiences even when the owner isn't watching.</div>
+          <div class="research-line">
+            <div class="research-line-label">Research Line · Use in Touch 1</div>
+            The National Restaurant Association's 2026 State of the Industry report found that employee recruitment and retention is the #1 challenge for restaurant operators — ahead of food costs, supply chain, and technology. The people problem is the business problem.
+          </div>
+        </div>
+        <div class="card-section">
+          <div class="card-section-label">The Recommendation</div>
+          <div class="rec-row">
+            <div class="rec-key">Keynote</div>
+            <div class="rec-val"><strong>We Are All Clients: The Most Important Person Principle</strong> — Restaurant audiences live this every shift. This keynote turns a concept they already believe in into a cultural operating system they can actually install and sustain.</div>
+          </div>
+          <div class="rec-row">
+            <div class="rec-key">Training Pairing</div>
+            <div class="rec-val"><strong>Great Service Begins with Good Systems</strong> — Restaurants run on systems; this workshop helps leadership teams see which of those systems are eroding the culture they're trying to build — and what to fix first.</div>
+          </div>
+        </div>
+        <div class="card-contact">
+          <div class="contact-label">📋 Book This Gig</div>
+          <div class="contact-name">Program Team</div>
+          <div class="contact-role">National Restaurant Association Show</div>
+          <div class="contact-note">Submit via nationalrestaurantshow.com/home/call-proposals/</div>
+          <a href="https://www.nationalrestaurantshow.com/home/call-proposals/" target="_blank" class="visit-link">Speaker proposals →</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ TIER 3 ══ -->
+  <div class="tier-section" id="section-t3">
+    <div class="tier-header">
+      <div class="tier-header-left">
+        <div class="tier-dot dot-t3"></div>
+        <span class="tier-name">Tier 3 — Watch List</span>
+        <span class="tier-desc">— Annual events to monitor for 2027 date announcements, or confirmed outside the target window.</span>
+      </div>
+      <div class="tier-count">8 events</div>
+    </div>
+    <div class="cards-grid">
+
+      <div class="card card-t3">
+        <div class="card-t3-body">
+          <div class="card-tags"><span class="industry-tag">Insurance</span></div>
+          <div class="card-title" style="font-size:15px; margin-bottom:4px;">NAIC Insurance Summit</div>
+          <div class="card-event">National Association of Insurance Commissioners · Typically late September · 2026 was Sept 29, Kansas City</div>
+          <a href="https://naic.org" target="_blank" class="visit-link">Visit →</a>
+        </div>
+      </div>
+
+      <div class="card card-t3">
+        <div class="card-t3-body">
+          <div class="card-tags"><span class="industry-tag">Insurance</span></div>
+          <div class="card-title" style="font-size:15px; margin-bottom:4px;">CPCU Society In2Risk Annual Meeting</div>
+          <div class="card-event">The Institutes CPCU Society · Typically October · 2026 was Oct 19–21, Las Vegas</div>
+          <a href="https://cpcusociety.org" target="_blank" class="visit-link">Visit →</a>
+        </div>
+      </div>
+
+      <div class="card card-t3">
+        <div class="card-t3-body">
+          <div class="card-tags"><span class="industry-tag">Real Estate</span></div>
+          <div class="card-title" style="font-size:15px; margin-bottom:4px;">NAR NXT Annual Conference</div>
+          <div class="card-event">National Association of REALTORS® · Nov 12–14, 2027, San Diego, CA — confirmed but outside window</div>
+          <a href="https://nar.realtor/events" target="_blank" class="visit-link">Visit →</a>
+        </div>
+      </div>
+
+      <div class="card card-t3">
+        <div class="card-t3-body">
+          <div class="card-tags"><span class="industry-tag">Construction</span></div>
+          <div class="card-title" style="font-size:15px; margin-bottom:4px;">CMAA Annual Conference 2027</div>
+          <div class="card-event">Construction Management Association of America · Oct 10–12, 2027, Dallas/Fort Worth — confirmed but outside window</div>
+          <a href="https://cmaanet.org" target="_blank" class="visit-link">Visit →</a>
+        </div>
+      </div>
+
+      <div class="card card-t3">
+        <div class="card-t3-body">
+          <div class="card-tags"><span class="industry-tag">HR &amp; Talent</span></div>
+          <div class="card-title" style="font-size:15px; margin-bottom:4px;">SHRM Annual Conference 2027</div>
+          <div class="card-event">Society for Human Resource Management · Typically June · 2027 dates not yet announced</div>
+          <a href="https://annual.shrm.org" target="_blank" class="visit-link">Visit →</a>
+        </div>
+      </div>
+
+      <div class="card card-t3">
+        <div class="card-t3-body">
+          <div class="card-tags"><span class="industry-tag">Insurance</span></div>
+          <div class="card-title" style="font-size:15px; margin-bottom:4px;">ReSource Pro Summit</div>
+          <div class="card-event">ReSource Pro · Annual · 2027 dates not yet published</div>
+          <a href="https://resourcepro.com" target="_blank" class="visit-link">Visit →</a>
+        </div>
+      </div>
+
+      <div class="card card-t3">
+        <div class="card-t3-body">
+          <div class="card-tags"><span class="industry-tag">Insurance</span></div>
+          <div class="card-title" style="font-size:15px; margin-bottom:4px;">Digital Insurance Summit 2027</div>
+          <div class="card-event">WBR / Digital Insurance · Annual · 2027 site live — monitor for keynote speaker submissions</div>
+          <a href="https://digitalinsurance.com/summit" target="_blank" class="visit-link">Visit →</a>
+        </div>
+      </div>
+
+      <div class="card card-t3">
+        <div class="card-t3-body">
+          <div class="card-tags"><span class="industry-tag">Financial Services</span></div>
+          <div class="card-title" style="font-size:15px; margin-bottom:4px;">AFSA Annual Conference</div>
+          <div class="card-event">American Financial Services Association · Annual · 2027 dates not yet published</div>
+          <a href="https://afsaonline.org" target="_blank" class="visit-link">Visit →</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function refreshDates() {
+    const today = new Date();
+    const fmt = d => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    const add48 = d => { const r = new Date(d); r.setDate(r.getDate() + 48*7); return r; };
+    document.getElementById('todayDate').textContent = fmt(today);
+    document.getElementById('targetDate').textContent = fmt(add48(today));
+    document.getElementById('sourcedDate').textContent = fmt(today);
+  }
+  refreshDates();
+
+  function toggleTier(tier, pill) {
+    const section = document.getElementById('section-' + tier);
+    const isHidden = section.classList.toggle('hidden');
+    pill.classList.toggle('active', !isHidden);
+  }
+</script>
+</body>
+</html>
